@@ -41,5 +41,9 @@ The recurring conflict is `win32.c`'s include block: the IPv6 code needs
 `git diff upstream/master -- include/enet/protocol.h` stays empty after a
 merge; the wire format must not change.
 
+If upstream changes a workflow file, the bot's push is refused (GitHub does
+not let the built-in token touch `.github/workflows/`); the sync job fails
+and the merge is done by hand from a checkout pushed over SSH.
+
 After a merge here, the game repository bumps its `common/enet` submodule to
 the new `master` (`make enet-update`, then commit the pointer).
