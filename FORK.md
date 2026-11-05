@@ -1,6 +1,6 @@
 # This fork
 
-`Shoot-and-Destroy/enet` is [lsalzman/enet](https://github.com/lsalzman/enet)
+`ngspades/enet` is [lsalzman/enet](https://github.com/lsalzman/enet)
 plus what our game server needs:
 
 - **IPv6** — the implementation of [lsalzman/enet#109](https://github.com/lsalzman/enet/pull/109)
