@@ -1,0 +1,63 @@
+name: Sync upstream
+
+# lsalzman/enet moves a few times a year. This merges its master into ours
+# and opens a pull request, so the IPv6 layer and the fixes in FORK.md are
+# never behind. Do not use GitHub's "Sync fork" button: this repository's
+# parent is SpadesX/enet, which has not moved since February 2024 and would
+# move master backwards. See FORK.md.
+on:
+  schedule:
+    - cron: "23 5 * * 1" # Mondays, 05:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Merge lsalzman/enet
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B master origin/master
+          git remote add upstream https://github.com/lsalzman/enet.git
+          git fetch --no-tags upstream master
+          if git merge-base --is-ancestor upstream/master HEAD; then
+            echo "master already has upstream/master"
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git merge --no-edit upstream/master; then
+            echo "::error::upstream/master conflicts with master (see FORK.md); resolve by hand"
+            git merge --abort || true
+            exit 1
+          fi
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      - name: Push the sync branch
+        if: steps.merge.outputs.changed == '1'
+        run: |
+          git checkout -B upstream-sync
+          git push --force origin upstream-sync
+
+      - name: Open the pull request
+        if: steps.merge.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(gh pr list --repo "$GITHUB_REPOSITORY" --head upstream-sync --state open --json number -q '.[].number')" ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base master --head upstream-sync \
+              --title "Merge upstream lsalzman/enet master" \
+              --body "Automated by \`.github/workflows/upstream.yml\`: merges \`lsalzman/enet\`'s master into ours and keeps the IPv6 layer and the fixes in FORK.md. CI (cmake.yml) builds it on Linux, macOS and Windows."
+          else
+            echo "the upstream-sync pull request is already open; the push updated it"
+          fi
